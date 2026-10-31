@@ -1,12 +1,12 @@
 // Real artworks supplied for Sarah's gallery. Descriptive titles are temporary; prices are not invented.
 export const WORKS = [
-  { code:'SG-01', title:'Portrait in Blue', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'Details on request', price:'Price on request', status:'Inquire' },
-  { code:'SG-02', title:'Crowned Figure', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'Details on request', price:'Price on request', status:'Inquire' },
-  { code:'SG-03', title:'Flowers & Still Life', artist:'Sarah Norris Gyening', medium:'Original paintings', year:'', dims:'Three works on view', price:'Inquire for details', status:'Inquire' },
-  { code:'SG-06', title:'Landscapes & Florals', artist:'Sarah Norris Gyening', medium:'Original paintings', year:'', dims:'Two works on view', price:'Inquire for details', status:'Inquire' },
-  { code:'SG-08', title:'Floral Portrait', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'Details on request', price:'Price on request', status:'Inquire' },
-  { code:'SG-09', title:'Red Floral Abstract', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'Details on request', price:'Price on request', status:'Inquire' },
-  { code:'SG-10', title:'Purple Flowers', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'Details on request', price:'Price on request', status:'Inquire' },
+  { code:'SG-01', title:'Portrait in Blue', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'8 × 10 in', price:'Price on request', status:'Inquire' },
+  { code:'SG-02', title:'Crowned Figure', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'8 × 10 in', price:'Price on request', status:'Inquire' },
+  { code:'SG-03', title:'Flowers & Still Life', artist:'Sarah Norris Gyening', medium:'Original paintings', year:'', dims:'Three original paintings · 8 × 10 in each', price:'Inquire for details', status:'Inquire' },
+  { code:'SG-06', title:'Landscapes & Florals', artist:'Sarah Norris Gyening', medium:'Original paintings', year:'', dims:'Two original paintings · 8 × 10 in each', price:'Inquire for details', status:'Inquire' },
+  { code:'SG-08', title:'Floral Portrait', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'8 × 10 in', price:'Price on request', status:'Inquire' },
+  { code:'SG-09', title:'Red Floral Abstract', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'8 × 10 in', price:'Price on request', status:'Inquire' },
+  { code:'SG-10', title:'Purple Flowers', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'8 × 10 in', price:'Price on request', status:'Inquire' },
 ];
 // Individual artworks placed on the 3D gallery walls. Prices and dimensions
 // remain unconfirmed until Sarah provides them.

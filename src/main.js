@@ -8,6 +8,7 @@ import { buildWorld, bakeUniforms, D, roomZ } from './world.js';
 import { layoutFor, computeStops, buildPath, evalPath, filmKeys, filmCamera, filmLights, FILM_LEN, CUES } from './journey.js';
 import { WORKS, CHAPTERS, DIVISIONS, ARTWORKS } from './content.js';
 import { clamp, smoothstep } from './util.js';
+import { initRoomPreview } from './roomPreview.js';
 
 const TEST = /[?&]test/.test(location.search);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -39,6 +40,8 @@ $$('.work').forEach((el) => {
     <p class="meta">${w.medium}<br>${w.dims}</p>
     <div class="buy"><span class="price">${w.price}${w.note ? `<small>${w.note}</small>` : ''}</span>
     <button class="btn ghost" type="button" data-inquire="${w.code}">Ask about the artwork</button></div>`;
+  const artToPreview = ARTWORKS.find((a) => a.room === Number(el.dataset.work));
+  if (artToPreview) el.insertAdjacentHTML('beforeend', '<button type="button" class="rp-entry" data-room-preview="' + artToPreview.code + '">View in Your Room · 8 × 10 in</button>');
 });
 // One card per painting in mobile detail sheets; preserve all desktop placards.
 $$('.chapter').forEach((section, room) => {
@@ -53,11 +56,13 @@ $$('.chapter').forEach((section, room) => {
          <h3>${w.title}</h3>
          <p>Sarah Norris Gyening</p>
          <strong class="mobile-artwork-price">${w.price}</strong>
+         <button type="button" class="rp-entry" data-room-preview="${w.code}">View in Your Room</button>
          <button class="btn ghost" type="button" data-inquire="${w.code}">Inquire about this artwork</button>
        </div>
      </article>`).join('');
   section.appendChild(list);
 });
+const roomPreview = initRoomPreview(ARTWORKS);
 const sel = $('#f-re');
 sel.innerHTML = [['general', 'General inquiry'], ['commission', 'Commission request']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('')
   + `<optgroup label="Works on view">` + ARTWORKS.map((w) => `<option value="${w.code}">${w.title} · ${w.code}</option>`).join('') + `</optgroup>`;
@@ -577,6 +582,7 @@ function frame(dt) {
 
 function tick(now) {
   requestAnimationFrame(tick);
+  if (roomPreview.isOpen()) { last = now; return; }
   const elapsed = Math.max(0, (now - last) / 1000);
   const dt = Math.min(0.05, elapsed);
   last = now;

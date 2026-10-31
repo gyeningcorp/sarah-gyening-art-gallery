@@ -30,19 +30,19 @@ CHAPTERS.forEach((c, k) => {
   b.setAttribute('aria-label', `${c.num} ${c.short}`);
   routeEl.appendChild(b);
 });
-$('#divs').innerHTML = DIVISIONS.map((d) => `<li><span>${d.name}</span><span class="pct">${d.own}%</span><small>${d.what}</small><span class="bar"><i style="width:${d.own}%"></i></span></li>`).join('');
+$('#divs').innerHTML = DIVISIONS.map((d) => `<li><span>${d.name}</span><small>${d.what}</small></li>`).join('');
 $$('.work').forEach((el) => {
   const w = WORKS[+el.dataset.work];
   const st = w.status === 'Reserved' ? 'reserved' : '';
   el.innerHTML = `<div class="work-top"><span>In this room · ${w.code}</span><span class="status ${st}"><i></i>${w.status}</span></div>
-    <h3>${w.title}</h3><p class="by">${w.artist} (${w.born})</p>
-    <p class="meta">${w.medium}, ${w.year}<br>${w.dims}</p>
+    <h3>${w.title}</h3><p class="by">${w.artist}</p>
+    <p class="meta">${w.medium}<br>${w.dims}</p>
     <div class="buy"><span class="price">${w.price}${w.note ? `<small>${w.note}</small>` : ''}</span>
-    <button class="btn ghost" type="button" data-inquire="${w.code}">${w.status === 'Reserved' ? 'Join the waitlist' : 'Inquire to acquire'}</button></div>`;
+    <button class="btn ghost" type="button" data-inquire="${w.code}">Ask about the artwork</button></div>`;
 });
 const sel = $('#f-re');
-sel.innerHTML = [['company', 'Selling my company'], ['general', 'General inquiry']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('')
-  + `<optgroup label="Works on view">` + WORKS.map((w) => `<option value="${w.code}">${w.title} · ${w.artist} (${w.code})</option>`).join('') + `</optgroup>`;
+sel.innerHTML = [['general', 'General inquiry'], ['commission', 'Commission request']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('')
+  + `<optgroup label="Works on view">` + WORKS.map((w) => `<option value="${w.code}">${w.title} · ${w.code}</option>`).join('') + `</optgroup>`;
 // floor plan: rooms left to right, entrance on the left
 const planSvg = $('#planSvg');
 {

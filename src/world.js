@@ -380,25 +380,61 @@ export async function buildWorld(scene, renderer, quality, onProgress = () => {}
     return m;
   }
 
+  // Preserve the original 3D architecture and canvas mounting; display Sarah's actual paintings.
+  const photoFiles = [
+    '01-hooded-portrait.webp', '02-crowned-figure.webp',
+    '03-checkered-vase-flowers.webp', '04-bread-and-fish.webp',
+    '05-walker-with-sheep.webp', '06-landscape-winding-path.webp',
+    '07-blue-yellow-florals.webp', '08-floral-portrait-green.webp',
+    '09-red-floral-abstract.webp', '10-purple-flowers.webp'
+  ];
+  const photographs = await Promise.all(photoFiles.map(file => new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => { console.warn('Unable to load gallery painting:', file); resolve(null); };
+    img.src = '/artworks/' + file;
+  })));
+  function photo(index, w = 900, h = 1100) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#f2eeea'; ctx.fillRect(0, 0, w, h);
+    const img = photographs[index];
+    if (img) {
+      // Fit the entire original painting; neutral mount prevents destructive cropping.
+      const scale = Math.min((w - 18) / img.width, (h - 18) / img.height);
+      const iw = img.width * scale, ih = img.height * scale;
+      ctx.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih);
+    } else {
+      ctx.fillStyle = '#746a67'; ctx.font = '28px sans-serif';
+      ctx.textAlign = 'center'; ctx.fillText('Artwork unavailable', w / 2, h / 2);
+    }
+    return { map: c, side: '#dfd7cf' };
+  }
+
   // ----- works
   await step('Hanging the works');
   const W0 = new THREE.Vector3(1, 0, 0), WX = new THREE.Vector3(-1, 0, 0), WZ = new THREE.Vector3(0, 0, 1);
 
-  // Stop 1: Horizon, Held (left wall)
+  // A real painting in the foyer, while retaining the original centerpiece sculpture.
+  {
+    const C = new THREE.Vector3(HW, 2.0, roomZ(0) - 1.1);
+    hangCanvas(0, 0, C, WX, 1.75, 2.2, photo(0), { nScale: 0.08 });
+    spotFor(0, C.clone().setX(HW - 0.05), WX, 2, 2.4, { cd: 80 });
+  }
+  // Stop 1: painting (left wall)
   {
     const C = new THREE.Vector3(-HW, 2.0, roomZ(1));
-    const pc = ART.horizonHeld(hi ? 1800 : 1200, hi ? 1200 : 800);
-    hangCanvas(1, 1, C, W0, 3.6, 2.4, pc, { nScale: 0.2 });
-    spotFor(1, C.clone().setX(-HW + 0.05), W0, 3.6, 2.4, { cd: 110 });
+    hangCanvas(1, 1, C, W0, 2.0, 2.5, photo(1), { nScale: 0.08 });
+    spotFor(1, C.clone().setX(-HW + 0.05), W0, 2.2, 2.6, { cd: 110 });
     label(1, 1, new THREE.Vector3(-HW, 1.45, roomZ(1) - 1.8 - 0.35), W0, WORKS[1]);
-    art[1] = { center: C.clone().setX(-HW + 0.07), normal: W0.clone(), w: 3.6, h: 2.4 };
+    art[1] = { center: C.clone().setX(-HW + 0.07), normal: W0.clone(), w: 2.0, h: 2.5 };
   }
   // Stop 2: Five Holdings (right wall)
   {
     const cx = roomZ(2), C = new THREE.Vector3(HW, 1.95, cx);
-    const pw = 1.0, ph = 1.3, gap = 0.32, tot = 5 * pw + 4 * gap;
-    for (let i = 0; i < 5; i++) {
-      const pc = ART.fiveHoldings(i, hi ? 1000 : 700, hi ? 1300 : 910);
+    const pw = 1.42, ph = 1.85, gap = 0.48, tot = 3 * pw + 2 * gap;
+    for (let i = 0; i < 3; i++) {
+      const pc = photo(i + 2);
       // on the right wall, moving along -z goes to the viewer's right; order panels left-to-right as seen
       const z = cx - tot / 2 + pw / 2 + i * (pw + gap);
       hangCanvas(2, 2, new THREE.Vector3(HW, 1.95, z), WX, pw, ph, pc, { nScale: 0.22, depth: 0.04 });
@@ -411,11 +447,11 @@ export async function buildWorld(scene, renderer, quality, onProgress = () => {}
   // Stop 3: Signal / Noise I-III (left wall, framed and glazed)
   {
     const cz = roomZ(3);
-    const fw = 1.1, fh = 1.45, gap = 0.55, tot = 3 * fw + 2 * gap;
+    const fw = 1.45, fh = 1.85, gap = 0.55, tot = 2 * fw + gap;
     const frameMat = bakeify(new THREE.MeshStandardMaterial({ color: 0xf6f4f0, roughness: 0.6 }));
     const matMat = bakeify(new THREE.MeshStandardMaterial({ color: 0xfbfaf7, roughness: 0.92 }));
     const glassMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.03, metalness: 0, transparent: true, opacity: 0.05, envMapIntensity: 1.4, depthWrite: false });
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
       const z = cz + tot / 2 - fw / 2 - i * (fw + gap);
       const g = new THREE.Group();
       const fd = 0.045, fb = 0.03;
@@ -430,7 +466,7 @@ export async function buildWorld(scene, renderer, quality, onProgress = () => {}
       }
       const back = new THREE.Mesh(new THREE.PlaneGeometry(fw - 2 * fb, fh - 2 * fb), matMat);
       back.position.z = 0.026; g.add(back); meshes.push(back);
-      const pr = ART.signalNoise(i, hi ? 1100 : 760, hi ? 1450 : 1000);
+      const pr = photo(i + 5);
       const printMat = bakeify(new THREE.MeshStandardMaterial({ map: canvasTex(pr.map, { aniso }), roughness: 0.9 }));
       const iw = fw - 2 * fb - 0.16, ih = (fh - 2 * fb - 0.16);
       const print = new THREE.Mesh(new THREE.PlaneGeometry(iw, ih), printMat);
@@ -453,22 +489,20 @@ export async function buildWorld(scene, renderer, quality, onProgress = () => {}
   // Stop 5: Line of Conduct (right wall)
   {
     const C = new THREE.Vector3(HW, 2.0, roomZ(5));
-    const pc = ART.lineOfConduct(hi ? 1800 : 1200, hi ? 990 : 660);
-    hangCanvas(5, 5, C, WX, 4.0, 2.2, pc, { nScale: 0.2 });
+    hangCanvas(5, 5, C, WX, 1.85, 2.48, photo(8), { nScale: 0.08 });
     spotFor(5, new THREE.Vector3(HW - 0.05, 2.0, roomZ(5) + 1.0), WX, 2.6, 2.2, { cd: 85 });
     spotFor(5, new THREE.Vector3(HW - 0.05, 2.0, roomZ(5) - 1.0), WX, 2.6, 2.2, { cd: 85 });
     label(5, 5, new THREE.Vector3(HW, 1.45, roomZ(5) + 2.0 + 0.35), WX, WORKS[5]);
-    art[5] = { center: C.clone().setX(HW - 0.07), normal: WX.clone(), w: 4.0, h: 2.2 };
+    art[5] = { center: C.clone().setX(HW - 0.07), normal: WX.clone(), w: 1.85, h: 2.48 };
   }
   // Stop 6: Open Door (end wall)
   {
     const C = new THREE.Vector3(0, 2.05, zEnd);
-    const pc = ART.openDoor(hi ? 1800 : 1200, hi ? 1200 : 800);
-    hangCanvas(6, 6, C, WZ, 4.2, 2.8, pc, { nScale: 0.32, depth: 0.05 });
+    hangCanvas(6, 6, C, WZ, 2.18, 2.66, photo(9), { nScale: 0.08, depth: 0.05 });
     spotFor(6, new THREE.Vector3(-1.1, 2.05, zEnd + 0.05), WZ, 2.6, 2.8, { cd: 95 });
     spotFor(6, new THREE.Vector3(1.1, 2.05, zEnd + 0.05), WZ, 2.6, 2.8, { cd: 95 });
     label(6, 6, new THREE.Vector3(2.1 + 0.4, 1.45, zEnd), WZ, WORKS[6]);
-    art[6] = { center: new THREE.Vector3(0, 2.05, zEnd + 0.08), normal: WZ.clone(), w: 4.2, h: 2.8 };
+    art[6] = { center: new THREE.Vector3(0, 2.05, zEnd + 0.08), normal: WZ.clone(), w: 2.18, h: 2.66 };
     // cross rail for end-wall fixtures
     const rail = new THREE.Mesh(new THREE.BoxGeometry(D.W - 4, 0.03, 0.035), black);
     rail.position.set(0, D.H - 0.015, zEnd + (D.H - 0.13 - 2.05) * Math.tan(THREE.MathUtils.degToRad(30)));
@@ -536,6 +570,13 @@ export async function buildWorld(scene, renderer, quality, onProgress = () => {}
     l.position.set(P.x - 1.75, 1.003, P.z + 1.3); l.rotation.set(-Math.PI / 2, 0, 0.5); scene.add(l); bakeMesh(l, 4, 0.3);
   }
 
+  // Gallery room IV painting, beside the existing sculpture.
+  {
+    const C = new THREE.Vector3(HW, 2.05, roomZ(4) - 1.0);
+    hangCanvas(4, 4, C, WX, 1.8, 2.3, photo(7), { nScale: 0.08 });
+    spotFor(4, C.clone().setX(HW - 0.05), WX, 2.0, 2.4, { cd: 84 });
+  }
+
   // ----- benches
   {
     const oak = bakeify(new THREE.MeshStandardMaterial({ map: canvasTex(TX.whiteOak(), { aniso }), roughness: 0.55 }));
@@ -557,7 +598,7 @@ export async function buildWorld(scene, renderer, quality, onProgress = () => {}
   {
     const wm = TX.wallText([
       { text: 'SARAH NORRIS/GYENING', size: 240, tracking: 46, y: 470, color: '#de625d', weight: 600, fit: 0.94 },
-      { text: 'PERMANENT HOLDINGS  ·  A COLLECTION IN SEVEN ROOMS', size: 64, tracking: 20, y: 690, color: '#3a3233', weight: 500 },
+      { text: 'ORIGINAL ART  ·  A COLLECTION IN SEVEN ROOMS', size: 64, tracking: 20, y: 690, color: '#3a3233', weight: 500 },
     ], { width: 4096, height: 1024 });
     const mat = bakeify(new THREE.MeshStandardMaterial({ map: canvasTex(wm, { aniso }), transparent: true, roughness: 0.92, depthWrite: false }));
     const m = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 1.8), mat);
@@ -572,9 +613,9 @@ export async function buildWorld(scene, renderer, quality, onProgress = () => {}
   }
   {
     const lines = [
-      { text: 'PERMANENT HOLDINGS', size: 92, tracking: 18, y: 150, align: 'left', x: 0, weight: 600, color: '#2b2526' },
+      { text: 'ORIGINAL ARTWORK', size: 92, tracking: 18, y: 150, align: 'left', x: 0, weight: 600, color: '#2b2526' },
     ];
-    const para = 'Sarah Norris/Gyening acquires durable, well-run companies and holds them with no sale date. This exhibition walks through how we work: one room for each part of the group, one work in each room. Every work on view is offered for acquisition.';
+    const para = 'An exhibition of original paintings by Sarah Norris Gyening. Move through seven connected rooms to explore portraits, nature, color and storytelling. For details or availability, send Sarah an artwork inquiry.';
     const c = TX.wallText([], { width: 2048, height: 1400 });
     const ctx = c.getContext('2d');
     for (const ln of lines) {

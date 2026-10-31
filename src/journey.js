@@ -184,9 +184,9 @@ export function filmLights(t) {
 }
 
 export const CUES = [
-  { t0: 0.45, t1: 2.75, text: 'From one foundation' },
-  { t0: 3.0, t1: 5.5, text: 'into many enterprises' },
-  { t0: 5.75, t1: 8.35, text: 'held for generations', weight: true },
-  { t0: 8.6, t1: 11.1, text: 'Permanent capital.|Patient ownership.' },
-  { t0: 11.4, t1: 14.6, text: 'Seven rooms · Seven works · All offered for acquisition', small: true },
+  { t0: 0.45, t1: 2.75, text: 'A world of color' },
+  { t0: 3.0, t1: 5.5, text: 'told through original paintings' },
+  { t0: 5.75, t1: 8.35, text: 'a collection of expression', weight: true },
+  { t0: 8.6, t1: 11.1, text: 'Light. Texture.|Imagination.' },
+  { t0: 11.4, t1: 14.6, text: 'Seven rooms · Ten paintings · One artist', small: true },
 ];

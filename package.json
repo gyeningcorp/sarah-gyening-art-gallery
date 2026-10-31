@@ -1,0 +1,16 @@
+{
+  "name": "sarah-gyening-art-gallery",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sarah Norris/Gyening: a walk-through 3D gallery website with seven rooms and works for sale.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "screenshot": "node scripts/screenshot.js"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  }
+}

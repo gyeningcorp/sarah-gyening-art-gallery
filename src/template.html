@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sarah Norris/Gyening</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -189,6 +189,44 @@ form.contact textarea { min-height: 84px; resize: vertical; }
   .hint i { animation: none; }
   * { transition-duration: .01ms !important; }
 }
+
+/* Mobile gallery stays immersive; artwork information is opt-in. */
+.mobile-controls { display: none; }
+@media (max-width: 760px), (max-aspect-ratio: 85/100) {
+  .site header.top { pointer-events: none; }
+  .site header.top .brand { pointer-events: auto; background: rgba(255,255,255,.84); }
+  .site .route-compact { display: none; }
+  .site .chapter.on { visibility: hidden; pointer-events: none; }
+  .site.mobile-info-open .chapter.on {
+    visibility: visible; pointer-events: auto;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    max-height: min(62dvh, 540px); overflow-y: auto;
+    overscroll-behavior: contain; border-radius: 14px;
+    background: rgba(252,250,248,.98); box-shadow: 0 12px 65px rgba(0,0,0,.28);
+  }
+  .site .mobile-controls {
+    display: flex; align-items: center; gap: 4px;
+    position: fixed; z-index: 25;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    left: 12px; right: 12px; height: 52px; padding: 4px 6px;
+    color: #251e1d; background: rgba(252,250,248,.94);
+    border: 1px solid rgba(255,255,255,.7); border-radius: 999px;
+    box-shadow: 0 5px 25px rgba(0,0,0,.17);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .mobile-controls button { min-width: 42px; min-height: 42px;
+    border: 0; border-radius: 30px; background: transparent;
+    color: inherit; font-size: 22px; cursor: pointer; }
+  .mobile-controls button:disabled { opacity: .25; cursor: default; }
+  #mobileRoom { text-align: center; font-size: 12px; font-weight: 650;
+    flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mobileInfo { font: inherit; font-size: 12px; font-weight: 700;
+    padding: 0 13px; background: #302727; color: white; }
+  .site.mobile-info-open #mobileInfo { background: #ad4b44; }
+  .cue { font-size: clamp(30px, 8vw, 56px); }
+  .cue span { will-change: opacity, transform; }
+  .site .hint, .site .plan { display: none; }
+}
 </style>
 </head>
 <body>
@@ -205,6 +243,12 @@ form.contact textarea { min-height: 84px; resize: vertical; }
   </div>
   <button class="replay" type="button" id="replayTop">Replay film</button>
 </header>
+<div class="mobile-controls" id="mobileControls" aria-label="Gallery navigation">
+  <button type="button" data-rel="-1" id="mobilePrev" aria-label="Previous room">‹</button>
+  <span id="mobileRoom" aria-live="polite">Foyer</span>
+  <button type="button" data-rel="1" id="mobileNext" aria-label="Next room">›</button>
+  <button type="button" id="mobileInfo" aria-expanded="false" aria-label="Show room information">Info</button>
+</div>
 
 <main>
   <section class="chapter" id="arrival" data-k="0" data-side="left" aria-labelledby="h-arrival">

@@ -65,10 +65,25 @@ const lbar = $('#lbar'), lstep = $('#lstep');
 let loadN = 0;
 const progress = (label) => { loadN++; lbar.style.width = Math.min(100, loadN * 13) + '%'; lstep.textContent = label; };
 
-function pickQuality() {
-  const small = Math.min(innerWidth, innerHeight) < 640;
-  const high = !coarse && !small;
-  return { tier: high ? 'high' : 'low', reflections: high, shadows: high, shadowSize: 1024, dpr: Math.min(window.devicePixelRatio || 1, 1.5), msaa: high ? 4 : 0, reflW: 512, reflH: 512 };
+function pickQuality(renderer) {
+  // Use a sensible render budget before starting the cinematic tour.
+  let gpu = '';
+  try {
+    const ctx = renderer.getContext();
+    const ext = ctx.getExtension('WEBGL_debug_renderer_info');
+    if (ext) gpu = String(ctx.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '');
+  } catch (_) { /* private GPU info */ }
+  const integrated = /intel|uhd graphics|iris|mali|adreno|radeon\(tm\) graphics/i.test(gpu);
+  const small = Math.min(innerWidth, innerHeight) < 760;
+  const restricted = (navigator.deviceMemory > 0 && navigator.deviceMemory <= 4) ||
+    (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4);
+  const high = !(coarse || small || integrated || restricted);
+  return {
+    tier: high ? 'high' : 'low', reflections: high, shadows: high,
+    shadowSize: high ? 512 : 256,
+    dpr: Math.min(window.devicePixelRatio || 1, high ? 1.15 : 0.95),
+    msaa: 0, reflW: 512, reflH: 512
+  };
 }
 
 async function fontsReady() {
@@ -97,7 +112,6 @@ const gradeShader = {
 };
 
 async function init() {
-  quality = pickQuality();
   L = layoutFor(innerWidth, innerHeight);
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: TEST });
@@ -105,6 +119,7 @@ async function init() {
     gl = false;
   }
   if (!gl || !renderer.capabilities.isWebGL2) { failGL(); return; }
+  quality = pickQuality(renderer);
   renderer.setPixelRatio(quality.dpr);
   renderer.setSize(innerWidth, innerHeight, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -112,8 +127,8 @@ async function init() {
   renderer.toneMappingExposure = LIGHT.exposure;
   renderer.shadowMap.enabled = quality.shadows;
   renderer.shadowMap.type = THREE.PCFShadowMap;
-  quality.reflW = Math.round(innerWidth * quality.dpr * 0.5);
-  quality.reflH = Math.round(innerHeight * quality.dpr * 0.5);
+  quality.reflW = Math.min(768, Math.round(innerWidth * quality.dpr * 0.35));
+  quality.reflH = Math.min(512, Math.round(innerHeight * quality.dpr * 0.35));
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050404);
@@ -135,7 +150,7 @@ async function init() {
   composer.setSize(innerWidth, innerHeight);
   composer.addPass(new RenderPass(scene, camera));
   bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.16, 0.6, 1.45);
-  composer.addPass(bloom);
+  if (quality.tier === 'high') composer.addPass(bloom);
   composer.addPass(new OutputPass());
   grade = new ShaderPass(gradeShader);
   composer.addPass(grade);
@@ -190,7 +205,7 @@ function applyLights(Lv) {
 function captureEnv() {
   if (refs.reflector) refs.reflector.visible = false;
   const pm = new THREE.PMREMGenerator(renderer);
-  const cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+  const cubeRT = new THREE.WebGLCubeRenderTarget(quality.tier === 'high' ? 256 : 128, { type: THREE.HalfFloatType });
   const cc = new THREE.CubeCamera(0.1, 200, cubeRT);
   cc.position.set(0, 2.2, roomZ(2));
   scene.add(cc);
@@ -198,7 +213,7 @@ function captureEnv() {
   scene.environment = pm.fromCubemap(cubeRT.texture).texture;
   for (const m of refs.mirrors) {
     m.mesh.visible = false;
-    const mrt = new THREE.WebGLCubeRenderTarget(quality.tier === 'high' ? 512 : 256, { type: THREE.HalfFloatType });
+    const mrt = new THREE.WebGLCubeRenderTarget(quality.tier === 'high' ? 256 : 128, { type: THREE.HalfFloatType });
     const mc = new THREE.CubeCamera(0.05, 200, mrt);
     mc.position.copy(m.at);
     scene.add(mc);
@@ -234,13 +249,14 @@ addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout((
 
 // ---------------------------------------------------------------------------------------------
 // Film
-let mode = 'load', filmT = 0, siteT = 0;
+let mode = 'load', filmT = 0, siteT = 0, filmStartedAt = 0;
 const film = $('#film'), cueEl = $('#cue'), tcEl = $('#tc'), fprog = $('#fprog'), fade = $('#fade');
 const barT = $('.bar-t'), barB = $('.bar-b');
 let cueIdx = -2, cueSpans = [];
 
 function startFilm() {
-  mode = 'film'; filmT = 0; cueIdx = -2;
+  setMobileInfo(false);
+  mode = 'film'; filmT = 0; filmStartedAt = performance.now(); cueIdx = -2;
   html.classList.add('locked');
   document.body.classList.remove('site');
   film.classList.remove('off');
@@ -297,7 +313,7 @@ function filmUI(t) {
       const o = smoothstep(dur - 0.5, dur, lt);
       s.style.opacity = (a * (1 - o)).toFixed(3);
       s.style.transform = `translateY(${((1 - a) * 0.5 - o * 0.12).toFixed(3)}em)`;
-      s.style.filter = `blur(${((1 - a) * 9 + o * 7).toFixed(2)}px)`;
+      s.style.filter = coarse || L.mobile ? 'none' : `blur(${((1 - a) * 9 + o * 7).toFixed(2)}px)`;
       if (c.weight) s.style.fontVariationSettings = `"wght" ${(400 + 460 * smoothstep(0.1, 0.85, lt / dur)).toFixed(0)}, "opsz" 96`;
       if (c.small) s.style.letterSpacing = `${(0.3 + (1 - a) * 0.6).toFixed(2)}em`;
     });
@@ -319,9 +335,21 @@ const chapters = $$('.chapter');
 const compactLabel = $('.route-compact span');
 const planLabel = $('#planLabel');
 const hint = $('#hint');
+const mobileRoom = $('#mobileRoom'), mobileInfo = $('#mobileInfo');
+const mobilePrev = $('#mobilePrev'), mobileNext = $('#mobileNext');
+const isMobileView = () => matchMedia('(max-width: 760px), (max-aspect-ratio: 85/100)').matches;
+let mobileInfoOpen = false;
+function setMobileInfo(open) {
+  mobileInfoOpen = !!open;
+  document.body.classList.toggle('mobile-info-open', mobileInfoOpen);
+  mobileInfo.textContent = mobileInfoOpen ? 'Close' : 'Info';
+  mobileInfo.setAttribute('aria-expanded', String(mobileInfoOpen));
+  mobileInfo.setAttribute('aria-label', mobileInfoOpen ? 'Close room information' : 'Show room information');
+}
 
 function goTo(k, instant = false) {
   k = clamp(k, 0, N - 1);
+  if (isMobileView()) setMobileInfo(false);
   const y = k * segH;
   if (instant || reduce) { window.scrollTo(0, y); return; }
   const y0 = window.scrollY;
@@ -360,6 +388,25 @@ function initUI() {
   addEventListener('pointermove', (e) => { if (!coarse) { par.tx = e.clientX / innerWidth - 0.5; par.ty = e.clientY / innerHeight - 0.5; } lastMove = performance.now(); });
 
   // contact form
+  // Tap Info to see details; horizontal swipe advances through the rooms.
+  mobileInfo.addEventListener('click', () => setMobileInfo(!mobileInfoOpen));
+  let touchStart = null;
+  addEventListener('touchstart', (e) => {
+    if (!isMobileView() || mode !== 'site' || mobileInfoOpen || e.touches.length !== 1) return;
+    if (e.target.closest('button, a, input, select, textarea, .chapter, .mobile-controls')) return;
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+  addEventListener('touchend', (e) => {
+    if (!touchStart || !isMobileView() || mode !== 'site') { touchStart = null; return; }
+    const dx = e.changedTouches[0].clientX - touchStart.x;
+    const dy = e.changedTouches[0].clientY - touchStart.y;
+    touchStart = null;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+      goTo(Math.round(targetP) + (dx < 0 ? 1 : -1));
+    }
+  }, { passive: true });
+  addEventListener('touchcancel', () => { touchStart = null; }, { passive: true });
+
   const form = $('#contactForm'), err = $('#f-err');
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -417,6 +464,10 @@ function uiFrame(dt) {
   const k = Math.round(P);
   if (k !== active) {
     active = k;
+    mobileRoom.textContent = CHAPTERS[k].room + ' · ' + CHAPTERS[k].short;
+    mobilePrev.disabled = k === 0;
+    mobileNext.disabled = k === N - 1;
+    if (mobileInfoOpen && isMobileView()) setMobileInfo(false);
     $$('button', routeEl).forEach((b, i) => { if (i === k) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
     compactLabel.innerHTML = `<b>${CHAPTERS[k].num}</b>${CHAPTERS[k].short}`;
     planLabel.textContent = `${CHAPTERS[k].room} · ${CHAPTERS[k].short}`;
@@ -434,12 +485,12 @@ function uiFrame(dt) {
 // ---------------------------------------------------------------------------------------------
 // Frame loop
 const par = { x: 0, y: 0, tx: 0, ty: 0 };
-let last = performance.now(), lastMove = 0, frameNo = 0, slowFrames = 0, sampleT = 0, sampleN = 0;
+let last = performance.now(), lastMove = 0, frameNo = 0, sampleT = 0, sampleN = 0, lastAdjustment = 0;
 const _p = new THREE.Vector3(), _t = new THREE.Vector3(), _q = new THREE.Quaternion();
 
 function frame(dt) {
   if (mode === 'film') {
-    filmT += dt;
+    filmT = TEST ? filmT + dt : Math.min(FILM_LEN, (performance.now() - filmStartedAt) / 1000);
     if (filmT >= FILM_LEN) { filmT = FILM_LEN; filmCamera(keys, filmT, _p, _t); camera.position.copy(_p); camera.lookAt(_t); filmUI(filmT); enterSite(0, false); }
     else {
       filmCamera(keys, filmT, _p, _t);
@@ -473,22 +524,28 @@ function frame(dt) {
 
 function tick(now) {
   requestAnimationFrame(tick);
-  const dt = Math.min(0.05, (now - last) / 1000);
+  const elapsed = Math.max(0, (now - last) / 1000);
+  const dt = Math.min(0.05, elapsed);
   last = now;
   frameNo++;
   // idle at half rate once the walk has settled
   const idle = mode === 'site' && !tween && Math.abs(targetP - P) < 1e-3 && now - lastMove > 1500 && siteT > 4;
   if (idle && frameNo % 2) { uiFrame(dt); return; }
   frame(idle ? dt * 2 : dt);
-  // adaptive resolution
-  sampleT += dt; sampleN++;
-  if (sampleN >= 90) {
-    const avg = sampleT / sampleN * (idle ? 0.5 : 1);
-    if (avg > 0.036 && quality.dpr > 0.8) {
-      quality.dpr = Math.max(0.75, quality.dpr - 0.2);
-      renderer.setPixelRatio(quality.dpr); composer.setPixelRatio(quality.dpr); layout();
-    } else if (avg > 0.036 && refs.reflector && refs.reflector.visible) {
-      refs.reflector.visible = false;
+  // React to sustained dropped frames without repeatedly rebuilding the scene.
+  if (!idle && elapsed < 0.5) { sampleT += elapsed; sampleN++; }
+  if (sampleN >= 24) {
+    const avg = sampleT / sampleN;
+    if (avg > 0.033 && now - lastAdjustment > 1600) {
+      if (quality.dpr > 0.68) {
+        quality.dpr = Math.max(0.65, quality.dpr - 0.13);
+        renderer.setPixelRatio(quality.dpr);
+        composer.setPixelRatio(quality.dpr);
+        layout();
+      } else if (refs.reflector && refs.reflector.visible) {
+        refs.reflector.visible = false;
+      }
+      lastAdjustment = now;
     }
     sampleT = 0; sampleN = 0;
   }

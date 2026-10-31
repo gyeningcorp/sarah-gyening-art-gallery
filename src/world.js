@@ -158,7 +158,7 @@ function canvasTex(c, { srgb = true, repeat = false, aniso = 8 } = {}) {
 
 // ---------------------------------------------------------------------------------------------
 export async function buildWorld(scene, renderer, quality, onProgress = () => {}) {
-  const aniso = renderer.capabilities.getMaxAnisotropy();
+  const aniso = Math.min(renderer.capabilities.getMaxAnisotropy(), quality.tier === 'high' ? 8 : 2);
   const hi = quality.tier === 'high';
   const refs = { spots: [], lenses: [], laylights: [], stopObjects: [], art: {}, mirrors: [] };
   const step = async (label) => { onProgress(label); await new Promise((r) => setTimeout(r, 16)); };
@@ -394,7 +394,7 @@ export async function buildWorld(scene, renderer, quality, onProgress = () => {}
     img.onerror = () => { console.warn('Unable to load gallery painting:', file); resolve(null); };
     img.src = '/artworks/' + file;
   })));
-  function photo(index, w = 900, h = 1100) {
+  function photo(index, w = hi ? 900 : 560, h = hi ? 1100 : 700) {
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const ctx = c.getContext('2d');
     ctx.fillStyle = '#f2eeea'; ctx.fillRect(0, 0, w, h);

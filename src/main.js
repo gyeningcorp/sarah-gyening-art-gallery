@@ -6,7 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { buildWorld, bakeUniforms, D, roomZ } from './world.js';
 import { layoutFor, computeStops, buildPath, evalPath, filmKeys, filmCamera, filmLights, FILM_LEN, CUES } from './journey.js';
-import { WORKS, CHAPTERS, DIVISIONS } from './content.js';
+import { WORKS, CHAPTERS, DIVISIONS, ARTWORKS } from './content.js';
 import { clamp, smoothstep } from './util.js';
 
 const TEST = /[?&]test/.test(location.search);
@@ -40,9 +40,27 @@ $$('.work').forEach((el) => {
     <div class="buy"><span class="price">${w.price}${w.note ? `<small>${w.note}</small>` : ''}</span>
     <button class="btn ghost" type="button" data-inquire="${w.code}">Ask about the artwork</button></div>`;
 });
+// One card per painting in mobile detail sheets; preserve all desktop placards.
+$('.chapter').forEach((section, room) => {
+  const works = ARTWORKS.filter((w) => w.room === room);
+  const list = document.createElement('div');
+  list.className = 'mobile-artworks';
+  list.innerHTML = works.map((w) =>
+    `<article class="mobile-artwork">
+       <img src="/artworks/${w.file}" alt="${w.title}, a painting by Sarah Norris Gyening" loading="lazy" decoding="async">
+       <div class="mobile-artwork-copy">
+         <span class="mobile-artwork-code">${w.code} · Original painting</span>
+         <h3>${w.title}</h3>
+         <p>Sarah Norris Gyening</p>
+         <strong class="mobile-artwork-price">${w.price}</strong>
+         <button class="btn ghost" type="button" data-inquire="${w.code}">Inquire about this artwork</button>
+       </div>
+     </article>`).join('');
+  section.appendChild(list);
+});
 const sel = $('#f-re');
 sel.innerHTML = [['general', 'General inquiry'], ['commission', 'Commission request']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('')
-  + `<optgroup label="Works on view">` + WORKS.map((w) => `<option value="${w.code}">${w.title} · ${w.code}</option>`).join('') + `</optgroup>`;
+  + `<optgroup label="Works on view">` + ARTWORKS.map((w) => `<option value="${w.code}">${w.title} · ${w.code}</option>`).join('') + `</optgroup>`;
 // floor plan: rooms left to right, entrance on the left
 const planSvg = $('#planSvg');
 {
@@ -245,7 +263,14 @@ function layout() {
   keys = filmKeys(stops[0]);
 }
 let resizeT;
-addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { layout(); if (mode === 'site') window.scrollTo(0, P * segH); }, 120); });
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => {
+  layout();
+  if (mode === 'site') {
+    html.classList.toggle('mobile-gallery', isMobileView());
+    if (isMobileView()) { mobileRoomIndex = Math.round(P); window.scrollTo(0, 0); }
+    else window.scrollTo(0, P * segH);
+  }
+}, 120); });
 
 // ---------------------------------------------------------------------------------------------
 // Film
@@ -257,6 +282,7 @@ let cueIdx = -2, cueSpans = [];
 function startFilm() {
   setMobileInfo(false);
   mode = 'film'; filmT = 0; filmStartedAt = performance.now(); cueIdx = -2;
+  html.classList.remove('mobile-gallery');
   html.classList.add('locked');
   document.body.classList.remove('site');
   film.classList.remove('off');
@@ -271,9 +297,15 @@ function enterSite(k = 0, instant = false) {
   film.classList.add('off');
   html.classList.remove('locked');
   document.body.classList.add('site');
+  html.classList.toggle('mobile-gallery', isMobileView());
   if (gl) applyLights(fullLights());
   requestAnimationFrame(() => {
-    window.scrollTo(0, k * segH);
+    if (isMobileView()) {
+      mobileRoomIndex = k;
+      window.scrollTo(0, 0);
+    } else {
+      window.scrollTo(0, k * segH);
+    }
     P = targetP = k;
   });
 }
@@ -338,18 +370,29 @@ const hint = $('#hint');
 const mobileRoom = $('#mobileRoom'), mobileInfo = $('#mobileInfo');
 const mobilePrev = $('#mobilePrev'), mobileNext = $('#mobileNext');
 const isMobileView = () => matchMedia('(max-width: 760px), (max-aspect-ratio: 85/100)').matches;
-let mobileInfoOpen = false;
+let mobileInfoOpen = false, mobileRoomIndex = 0;
 function setMobileInfo(open) {
   mobileInfoOpen = !!open;
+  if (mobileInfoOpen && isMobileView() && mode === 'site') {
+    // Avoid any camera drift or UI switching while reading artwork details.
+    P = targetP = mobileRoomIndex;
+    tween = null;
+  }
   document.body.classList.toggle('mobile-info-open', mobileInfoOpen);
-  mobileInfo.textContent = mobileInfoOpen ? 'Close' : 'Info';
+  mobileInfo.textContent = mobileInfoOpen ? 'Close' : 'Details & Price';
   mobileInfo.setAttribute('aria-expanded', String(mobileInfoOpen));
-  mobileInfo.setAttribute('aria-label', mobileInfoOpen ? 'Close room information' : 'Show room information');
+  mobileInfo.setAttribute('aria-label', mobileInfoOpen ? 'Close artwork details and prices' : 'Show artwork details and prices');
 }
 
 function goTo(k, instant = false) {
   k = clamp(k, 0, N - 1);
-  if (isMobileView()) setMobileInfo(false);
+  if (isMobileView()) {
+    setMobileInfo(false);
+    mobileRoomIndex = k;
+    tween = null;
+    if (instant || reduce) P = targetP = k;
+    return;
+  }
   const y = k * segH;
   if (instant || reduce) { window.scrollTo(0, y); return; }
   const y0 = window.scrollY;
@@ -363,13 +406,23 @@ function initUI() {
     const go = e.target.closest('[data-go]');
     if (go && mode === 'site') { e.preventDefault(); goTo(+go.dataset.go); return; }
     const rel = e.target.closest('[data-rel]');
-    if (rel && mode === 'site') { goTo(active + +rel.dataset.rel); return; }
+    if (rel && mode === 'site') { goTo((isMobileView() ? mobileRoomIndex : active) + +rel.dataset.rel); return; }
     if (e.target.closest('[data-replay]') || e.target.closest('#replayTop')) { if (gl) startFilm(); return; }
     const inq = e.target.closest('[data-inquire]');
     if (inq) {
       sel.value = inq.dataset.inquire;
       goTo(N - 1);
-      setTimeout(() => $('#f-name').focus({ preventScroll: true }), reduce ? 50 : 1600);
+      if (isMobileView()) {
+        P = targetP = N - 1;
+        setMobileInfo(true);
+        requestAnimationFrame(() => {
+          const sheet = chapters[N - 1];
+          if (sheet) sheet.scrollTop = Math.max(0, $('#contactForm').offsetTop - sheet.offsetTop - 22);
+          $('#f-name').focus({ preventScroll: true });
+        });
+      } else {
+        setTimeout(() => $('#f-name').focus({ preventScroll: true }), reduce ? 50 : 1600);
+      }
     }
   });
   $('#skip').addEventListener('click', skipFilm);
@@ -402,7 +455,7 @@ function initUI() {
     const dy = e.changedTouches[0].clientY - touchStart.y;
     touchStart = null;
     if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-      goTo(Math.round(targetP) + (dx < 0 ? 1 : -1));
+      goTo(mobileRoomIndex + (dx < 0 ? 1 : -1));
     }
   }, { passive: true });
   addEventListener('touchcancel', () => { touchStart = null; }, { passive: true });
@@ -441,7 +494,7 @@ function uiFrame(dt) {
     window.scrollTo(0, tween.y0 + (tween.y1 - tween.y0) * easeIO(t));
     if (t >= 1) tween = null;
   }
-  targetP = clamp(window.scrollY / segH, 0, N - 1);
+  targetP = isMobileView() ? mobileRoomIndex : clamp(window.scrollY / segH, 0, N - 1);
   if (reduce) {
     const k = Math.round(targetP);
     if (k !== reduceShown && !reduceFading) {
@@ -452,22 +505,22 @@ function uiFrame(dt) {
     P += (targetP - P) * (1 - Math.exp(-dt * (tween ? 9 : 4.2)));
     if (Math.abs(targetP - P) < 1e-4) P = targetP;
   }
-  const mob = L.mobile;
+  const mob = isMobileView();
   chapters.forEach((el, k) => {
-    const vis = 1 - smoothstep(0.08, 0.3, Math.abs(P - k));
+    const vis = mob ? (k === mobileRoomIndex ? 1 : 0)
+      : 1 - smoothstep(0.08, 0.3, Math.abs(P - k));
     el.style.opacity = vis.toFixed(3);
     el.style.transform = mob ? `translateY(${((1 - vis) * 18).toFixed(1)}px)` : `translateY(calc(-50% + ${((1 - vis) * 18).toFixed(1)}px))`;
     const on = vis > 0.01;
     el.classList.toggle('on', on);
     el.inert = vis < 0.5;
   });
-  const k = Math.round(P);
+  const k = mob ? mobileRoomIndex : Math.round(P);
   if (k !== active) {
     active = k;
     mobileRoom.textContent = CHAPTERS[k].room + ' · ' + CHAPTERS[k].short;
     mobilePrev.disabled = k === 0;
     mobileNext.disabled = k === N - 1;
-    if (mobileInfoOpen && isMobileView()) setMobileInfo(false);
     $$('button', routeEl).forEach((b, i) => { if (i === k) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
     compactLabel.innerHTML = `<b>${CHAPTERS[k].num}</b>${CHAPTERS[k].short}`;
     planLabel.textContent = `${CHAPTERS[k].room} · ${CHAPTERS[k].short}`;
@@ -502,7 +555,7 @@ function frame(dt) {
     siteT += dt;
     uiFrame(dt);
     evalPath(path, P, _p, _q);
-    const amb = reduce ? 0 : smoothstep(0, 3, siteT);
+    const amb = (reduce || isMobileView() || mobileInfoOpen) ? 0 : smoothstep(0, 3, siteT);
     const T = performance.now() / 1000;
     par.x += (par.tx - par.x) * (1 - Math.exp(-dt * 3));
     par.y += (par.ty - par.y) * (1 - Math.exp(-dt * 3));

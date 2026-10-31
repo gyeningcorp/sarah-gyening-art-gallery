@@ -8,6 +8,20 @@ export const WORKS = [
   { code:'SG-09', title:'Red Floral Abstract', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'Details on request', price:'Price on request', status:'Inquire' },
   { code:'SG-10', title:'Purple Flowers', artist:'Sarah Norris Gyening', medium:'Original painting', year:'', dims:'Details on request', price:'Price on request', status:'Inquire' },
 ];
+// Individual artworks placed on the 3D gallery walls. Prices and dimensions
+// remain unconfirmed until Sarah provides them.
+export const ARTWORKS = [
+  { code:'SG-01', title:'Portrait in Blue', room:0, file:'01-hooded-portrait.webp', price:'Price on request' },
+  { code:'SG-02', title:'Crowned Figure', room:1, file:'02-crowned-figure.webp', price:'Price on request' },
+  { code:'SG-03', title:'Checkered Vase Flowers', room:2, file:'03-checkered-vase-flowers.webp', price:'Price on request' },
+  { code:'SG-04', title:'Bread and Fish', room:2, file:'04-bread-and-fish.webp', price:'Price on request' },
+  { code:'SG-05', title:'Walker with Sheep', room:2, file:'05-walker-with-sheep.webp', price:'Price on request' },
+  { code:'SG-06', title:'Winding Path', room:3, file:'06-landscape-winding-path.webp', price:'Price on request' },
+  { code:'SG-07', title:'Blue and Yellow Florals', room:3, file:'07-blue-yellow-florals.webp', price:'Price on request' },
+  { code:'SG-08', title:'Floral Portrait in Green', room:4, file:'08-floral-portrait-green.webp', price:'Price on request' },
+  { code:'SG-09', title:'Red Floral Abstract', room:5, file:'09-red-floral-abstract.webp', price:'Price on request' },
+  { code:'SG-10', title:'Purple Flowers', room:6, file:'10-purple-flowers.webp', price:'Price on request' }
+];
 export const CHAPTERS = [
   {id:'arrival',num:'00',short:'Arrival',room:'Foyer'},
   {id:'vision',num:'01',short:'Portraits',room:'Room I'},

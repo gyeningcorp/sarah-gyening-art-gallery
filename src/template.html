@@ -227,6 +227,46 @@ form.contact textarea { min-height: 84px; resize: vertical; }
   .cue span { will-change: opacity, transform; }
   .site .hint, .site .plan { display: none; }
 }
+
+/* On mobile, the film ends in a stationary room instead of page-scroll camera drift. */
+@media (max-width: 760px), (max-aspect-ratio: 85/100) {
+  html.mobile-gallery, html.mobile-gallery body {
+    height: 100%; overflow: hidden !important; overscroll-behavior: none;
+  }
+  html.mobile-gallery #track { height: 100dvh !important; pointer-events: none; }
+  html.mobile-gallery #stage { touch-action: none; }
+  body.site.mobile-info-open .chapter.on {
+    display: flex; flex-direction: column;
+    visibility: visible !important; pointer-events: auto;
+    opacity: 1 !important; transform: none !important;
+    top: auto; bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    z-index: 35; max-height: min(68dvh, 650px);
+    overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+  }
+  body.site.mobile-info-open .chapter.on .work { display: none; }
+  .mobile-artworks { display: none; }
+  body.site.mobile-info-open .chapter.on .mobile-artworks {
+    display: grid; order: -1; gap: 12px; margin-bottom: 15px;
+  }
+  .mobile-artwork {
+    display: grid; grid-template-columns: minmax(72px, 30%) minmax(0, 1fr);
+    gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 12px;
+  }
+  .mobile-artwork img {
+    display: block; width: 100%; max-height: 172px; object-fit: contain;
+    background: #f2eae4; border-radius: 3px;
+  }
+  .mobile-artwork-copy { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .mobile-artwork-code { font-size: 10px; letter-spacing: .045em; color: var(--ink-soft); }
+  .mobile-artwork h3 { font: italic 500 19px/1.1 var(--display); margin: 0; }
+  .mobile-artwork p { font-size: 12px; margin: 0; }
+  .mobile-artwork-price { font-size: 13px; }
+  .mobile-artwork .btn { align-self: flex-start; padding: 7px 9px; font-size: 11px; }
+  body.site .mobile-controls { z-index: 45; }
+}
+@media (min-width: 761px) and (min-aspect-ratio: 85/100) {
+  .mobile-artworks { display: none; }
+}
 </style>
 </head>
 <body>
@@ -247,7 +287,7 @@ form.contact textarea { min-height: 84px; resize: vertical; }
   <button type="button" data-rel="-1" id="mobilePrev" aria-label="Previous room">‹</button>
   <span id="mobileRoom" aria-live="polite">Foyer</span>
   <button type="button" data-rel="1" id="mobileNext" aria-label="Next room">›</button>
-  <button type="button" id="mobileInfo" aria-expanded="false" aria-label="Show room information">Info</button>
+  <button type="button" id="mobileInfo" aria-expanded="false" aria-label="Show artwork details and prices">Details &amp; Price</button>
 </div>
 
 <main>

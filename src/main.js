@@ -41,7 +41,7 @@ $$('.work').forEach((el) => {
     <button class="btn ghost" type="button" data-inquire="${w.code}">Ask about the artwork</button></div>`;
 });
 // One card per painting in mobile detail sheets; preserve all desktop placards.
-$('.chapter').forEach((section, room) => {
+$$('.chapter').forEach((section, room) => {
   const works = ARTWORKS.filter((w) => w.room === room);
   const list = document.createElement('div');
   list.className = 'mobile-artworks';

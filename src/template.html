@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sarah Norris/Gyening</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a fixed WebGL gallery behind everything; scrolling walks the camera room to room,
+   and each room's copy sits on a frosted white card beside the work on the wall. */
+:root {
+  --paper: #fcf9f8;
+  --ink: #2a2324;
+  --ink-soft: #6b5f60;
+  --red: #e0625d;
+  --red-ink: #b23f3a;
+  --blush: #f7dcd8;
+  --glass: rgba(252, 249, 248, 0.8);
+  --line: rgba(42, 35, 36, 0.12);
+  --ok: #3f7d5a;
+  --hold: #b9762a;
+  --display: "Bodoni Moda", "Bodoni 72", Didot, Georgia, serif;
+  --body: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+html.locked, html.locked body { overflow: hidden; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+#stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; background: #0d0b0b; }
+#track { position: relative; z-index: -1; pointer-events: none; }
+.fallback #stage { background: radial-gradient(120% 90% at 50% 20%, #fff 0%, #f3ecea 55%, #e7dcd9 100%); }
+
+/* ---------- header and route */
+header.top { position: fixed; top: 0; left: 0; right: 0; z-index: 20; display: flex; align-items: center; gap: 24px; padding: 14px clamp(16px, 3vw, 36px); opacity: 0; transform: translateY(-8px); transition: opacity .8s ease, transform .8s ease; pointer-events: none; }
+.site header.top { opacity: 1; transform: none; pointer-events: auto; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-weight: 650; letter-spacing: .28em; font-size: 12px; font-stretch: 110%; white-space: nowrap; background: var(--glass); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); padding: 9px 14px; border: 1px solid rgba(255,255,255,.7); }
+.brand i { width: 9px; height: 9px; background: var(--red); display: inline-block; }
+.route { display: flex; gap: 2px; margin: 0 auto; background: var(--glass); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); border: 1px solid rgba(255,255,255,.7); padding: 4px; }
+.route button { appearance: none; border: 0; background: transparent; font: inherit; font-size: 12px; color: var(--ink-soft); padding: 7px 11px; cursor: pointer; display: flex; gap: 6px; align-items: baseline; position: relative; white-space: nowrap; }
+.route button b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-soft); font-size: 11px; }
+.route button:hover { color: var(--ink); }
+.route button[aria-current="step"] { color: var(--ink); background: #fff; }
+.route button[aria-current="step"] b { color: var(--red-ink); }
+.route button[aria-current="step"]::after { content: ""; position: absolute; left: 11px; right: 11px; bottom: 3px; height: 2px; background: var(--red); }
+.route-compact { display: none; }
+.b-short { display: none; }
+.replay { appearance: none; border: 1px solid rgba(255,255,255,.7); background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); font: inherit; font-size: 12px; padding: 9px 14px; cursor: pointer; color: var(--ink); white-space: nowrap; }
+.replay:hover { background: #fff; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+/* ---------- chapter cards */
+.chapter { position: fixed; z-index: 10; top: 50%; width: min(410px, 34vw); max-height: calc(100vh - 150px); overflow: auto; transform: translateY(-50%); padding: 26px 26px 22px; background: var(--glass); backdrop-filter: blur(18px) saturate(1.25); -webkit-backdrop-filter: blur(18px) saturate(1.25); border: 1px solid rgba(255,255,255,.75); box-shadow: 0 24px 60px -30px rgba(40, 20, 20, .35); opacity: 0; visibility: hidden; scrollbar-width: thin; }
+.chapter[data-side="right"] { right: clamp(16px, 4vw, 64px); }
+.chapter[data-side="left"] { left: clamp(16px, 4vw, 64px); }
+.chapter.on { visibility: visible; }
+.eyebrow { margin: 0 0 12px; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-soft); display: flex; gap: 10px; align-items: center; font-weight: 600; }
+.eyebrow b { color: var(--red-ink); font-variant-numeric: tabular-nums; }
+.eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+h1, h2 { font-family: var(--display); font-weight: 500; letter-spacing: -0.01em; text-wrap: balance; margin: 0 0 12px; color: var(--ink); }
+h1 { font-size: clamp(34px, 3.6vw, 52px); line-height: 1.02; font-variation-settings: "opsz" 96; }
+h2 { font-size: clamp(28px, 2.6vw, 38px); line-height: 1.06; font-variation-settings: "opsz" 72; }
+h1 em, h2 em { font-style: italic; color: var(--red-ink); }
+.chapter p { margin: 0 0 14px; max-width: 62ch; }
+.lede { color: #463c3d; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 6px 0 16px; }
+.stats div { background: rgba(255,255,255,.7); padding: 10px 10px 8px; }
+.stats strong { display: block; font-family: var(--display); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums lining-nums; line-height: 1.1; }
+.stats span { font-size: 11px; color: var(--ink-soft); letter-spacing: .04em; }
+.divs { list-style: none; padding: 0; margin: 4px 0 14px; display: grid; gap: 9px; }
+.divs li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font-size: 14px; }
+.divs li small { grid-column: 1; color: var(--ink-soft); font-size: 12px; }
+.divs li .pct { grid-row: 1; grid-column: 2; font-variant-numeric: tabular-nums; font-weight: 600; }
+.divs li .bar { grid-column: 1 / -1; height: 3px; background: var(--blush); position: relative; }
+.divs li .bar i { position: absolute; inset: 0 auto 0 0; background: var(--red); }
+.spec { margin: 4px 0 14px; display: grid; grid-template-columns: auto 1fr; border-top: 1px solid var(--line); }
+.spec dt, .spec dd { margin: 0; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.spec dt { color: var(--ink-soft); padding-right: 18px; }
+.spec dd { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.ticks { list-style: none; margin: 4px 0 14px; padding: 0; display: grid; gap: 8px; }
+.ticks li { display: grid; grid-template-columns: 22px 1fr; font-size: 14px; }
+.ticks li::before { content: ""; width: 10px; height: 2px; background: var(--red); margin-top: 11px; }
+ol.princ { list-style: none; counter-reset: p; padding: 0; margin: 4px 0 14px; display: grid; gap: 12px; }
+ol.princ li { counter-increment: p; display: grid; grid-template-columns: 30px 1fr; font-size: 14px; }
+ol.princ li::before { content: counter(p, decimal-leading-zero); font-family: var(--display); font-weight: 600; color: var(--red-ink); font-variant-numeric: tabular-nums; }
+ol.princ strong { display: block; font-weight: 600; }
+
+/* placard for the work in the room */
+.work { margin-top: 6px; padding: 14px 14px 12px; background: rgba(255,255,255,.82); border-left: 3px solid var(--red); }
+.work-top { display: flex; justify-content: space-between; align-items: center; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; margin-bottom: 6px; }
+.status { display: inline-flex; align-items: center; gap: 6px; letter-spacing: .06em; }
+.status i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.status.reserved i { background: var(--hold); }
+.work h3 { font-family: var(--display); font-weight: 500; font-style: italic; font-size: 21px; margin: 0; line-height: 1.2; }
+.work .by { margin: 2px 0 8px; font-size: 13px; color: var(--ink-soft); }
+.work .meta { font-size: 12.5px; color: #4d4344; margin: 0 0 10px; }
+.work .buy { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.work .price { font-weight: 650; font-size: 17px; font-variant-numeric: tabular-nums; }
+.work .price small { display: block; font-weight: 400; font-size: 11.5px; color: var(--ink-soft); }
+.btn { appearance: none; border: 1px solid var(--ink); background: var(--ink); color: #fff; font: inherit; font-size: 13px; font-weight: 600; padding: 9px 14px; cursor: pointer; transition: background .2s, color .2s; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; }
+.btn:hover { background: var(--red-ink); border-color: var(--red-ink); }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.ghost:hover { background: #fff; color: var(--ink); border-color: var(--ink); }
+.btn.red { background: var(--red); border-color: var(--red); }
+.btn.red:hover { background: var(--red-ink); border-color: var(--red-ink); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 14px; }
+.step { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.step button { appearance: none; border: 0; background: none; font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; padding: 4px 0; display: inline-flex; gap: 6px; align-items: center; }
+.step button:hover { color: var(--red-ink); }
+.step button[disabled] { visibility: hidden; }
+
+/* contact */
+form.contact { display: grid; gap: 10px; margin-top: 4px; }
+form.contact label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--ink-soft); }
+form.contact input, form.contact select, form.contact textarea { font: inherit; font-size: 14px; color: var(--ink); background: rgba(255,255,255,.9); border: 1px solid rgba(42,35,36,.2); padding: 9px 10px; border-radius: 0; width: 100%; }
+form.contact textarea { min-height: 84px; resize: vertical; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.err { color: var(--red-ink); font-size: 12.5px; min-height: 1em; margin: 0; }
+.ready { display: none; background: #fff; border: 1px solid var(--line); padding: 12px; font-size: 13px; }
+.ready.on { display: block; }
+.ready pre { white-space: pre-wrap; font: inherit; font-size: 12.5px; background: var(--paper); padding: 10px; margin: 8px 0; max-height: 140px; overflow: auto; }
+.mail { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* floor plan */
+.plan { position: fixed; left: clamp(16px, 3vw, 36px); bottom: 20px; z-index: 15; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.75); padding: 10px 12px 8px; opacity: 0; transition: opacity .8s; pointer-events: none; }
+.site .plan { opacity: 1; pointer-events: auto; }
+.plan svg { display: block; }
+.plan .rm { fill: rgba(255,255,255,.6); stroke: rgba(42,35,36,.35); stroke-width: 1; cursor: pointer; }
+.plan .rm:hover { fill: #fff; }
+.plan .rm.cur { fill: var(--blush); }
+.plan p { margin: 6px 0 0; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); display: flex; justify-content: space-between; gap: 16px; }
+.plan p b { color: var(--ink); font-weight: 600; }
+.hint { position: fixed; right: clamp(16px, 3vw, 36px); bottom: 22px; z-index: 15; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.35); opacity: 0; transition: opacity .8s; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+.site .hint.show { opacity: .9; }
+.hint i { width: 1px; height: 22px; background: currentColor; display: inline-block; animation: drip 1.8s ease-in-out infinite; transform-origin: top; }
+@keyframes drip { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+/* ---------- loader & film */
+#loader { position: fixed; inset: 0; z-index: 60; background: var(--paper); display: grid; place-items: center; transition: opacity .6s ease; }
+#loader.out { opacity: 0; pointer-events: none; }
+.load-in { width: min(320px, 70vw); }
+.load-in .mark { font-weight: 650; letter-spacing: .32em; font-size: 12px; font-stretch: 110%; display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
+.load-in .mark i { width: 9px; height: 9px; background: var(--red); }
+.load-bar { height: 2px; background: var(--blush); overflow: hidden; }
+.load-bar i { display: block; height: 100%; width: 0; background: var(--red); transition: width .25s; }
+.load-step { margin-top: 10px; font-size: 12px; color: var(--ink-soft); }
+#film { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+#film.off { display: none; }
+.bar-t, .bar-b { position: absolute; left: 0; right: 0; height: 11vh; background: #050404; }
+.bar-t { top: 0; } .bar-b { bottom: 0; }
+.cue { position: absolute; left: 0; right: 0; bottom: 20vh; text-align: center; color: #fff; font-family: var(--display); font-size: clamp(34px, 6.2vw, 96px); font-weight: 400; line-height: 1.02; letter-spacing: -0.01em; text-shadow: 0 2px 30px rgba(0,0,0,.35); padding: 0 16px; }
+.cue span { display: inline-block; white-space: pre; will-change: transform, opacity, filter; }
+.cue.small { font-family: var(--body); font-size: clamp(11px, 1.2vw, 14px); letter-spacing: .3em; text-transform: uppercase; font-weight: 600; bottom: 14vh; }
+.film-ui { position: absolute; left: 0; right: 0; bottom: 0; height: 11vh; display: flex; align-items: center; justify-content: space-between; padding: 0 clamp(16px, 3vw, 36px); color: rgba(255,255,255,.75); font-size: 11px; letter-spacing: .18em; font-variant-numeric: tabular-nums; }
+.film-prog { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--red); width: 0; }
+.skip { position: absolute; top: calc(11vh / 2 - 18px); right: clamp(16px, 3vw, 36px); pointer-events: auto; appearance: none; border: 1px solid rgba(255,255,255,.5); background: rgba(0,0,0,.2); color: #fff; font: inherit; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; padding: 10px 16px; cursor: pointer; display: flex; gap: 10px; align-items: center; }
+.skip:hover { background: #fff; color: var(--ink); }
+.skip kbd { font: inherit; font-size: 10px; opacity: .7; border: 1px solid currentColor; padding: 1px 5px; }
+.film-mark { position: absolute; top: calc(11vh / 2 - 8px); left: clamp(16px, 3vw, 36px); color: rgba(255,255,255,.8); font-size: 11px; letter-spacing: .3em; font-weight: 600; }
+#fade { position: fixed; inset: 0; z-index: 50; background: #050404; opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+#fade.white { background: #fff; }
+#fade.on { opacity: 1; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+@media (max-width: 1080px) {
+  .route button span { display: none; }
+}
+@media (max-width: 760px), (max-aspect-ratio: 85/100) {
+  header.top { gap: 8px; padding: 10px 12px; }
+  .route { display: none; }
+  .route-compact { display: flex; align-items: center; margin-left: auto; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.7); }
+  .route-compact button { appearance: none; border: 0; background: none; font: inherit; font-size: 16px; width: 36px; height: 36px; cursor: pointer; color: var(--ink); }
+  .route-compact span { font-size: 12px; min-width: 112px; text-align: center; font-weight: 600; }
+  .route-compact span b { color: var(--red-ink); font-variant-numeric: tabular-nums; margin-right: 4px; }
+  .replay { display: none; }
+  .brand { padding: 9px 10px; letter-spacing: .2em; }
+  .b-long { display: none; } .b-short { display: inline; }
+  .chapter { top: auto; bottom: 12px; left: 12px !important; right: 12px !important; width: auto; transform: none; max-height: 47vh; padding: 18px 18px 14px; }
+  h1 { font-size: 30px; } h2 { font-size: 26px; }
+  .plan, .hint { display: none; }
+  .two { grid-template-columns: 1fr; }
+  .bar-t, .bar-b, .film-ui { height: 9vh; }
+  .skip { top: calc(9vh / 2 - 18px); }
+  .film-mark { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hint i { animation: none; }
+  * { transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+<canvas id="stage" aria-hidden="true"></canvas>
+<div id="track"></div>
+
+<header class="top">
+  <a class="brand" href="#arrival" data-go="0"><i></i><span class="b-long">SARAH NORRIS/GYENING</span><span class="b-short">SN/G</span></a>
+  <nav class="route" aria-label="Chapters"></nav>
+  <div class="route-compact" aria-label="Chapters">
+    <button type="button" data-rel="-1" aria-label="Previous room">‹</button>
+    <span aria-live="polite"><b>00</b>Arrival</span>
+    <button type="button" data-rel="1" aria-label="Next room">›</button>
+  </div>
+  <button class="replay" type="button" id="replayTop">Replay film</button>
+</header>
+
+<main>
+  <section class="chapter" id="arrival" data-k="0" data-side="left" aria-labelledby="h-arrival">
+    <p class="eyebrow"><b>00</b>Foyer · Arrival</p>
+    <h1 id="h-arrival">Patient owners of <em>enduring</em> businesses.</h1>
+    <p class="lede">Sarah Norris/Gyening buys durable companies and keeps them. Walk the collection: six rooms past the foyer, one for each part of the group, each with a work offered for acquisition.</p>
+    <div class="row">
+      <button class="btn red" type="button" data-go="1">Enter the gallery</button>
+      <button class="btn ghost" type="button" data-replay>Replay film</button>
+    </div>
+    <div class="work" data-work="0"></div>
+  </section>
+
+  <section class="chapter" id="vision" data-k="1" data-side="right" aria-labelledby="h-vision">
+    <p class="eyebrow"><b>01</b>Room I · Vision</p>
+    <h2 id="h-vision">Built to hold, <em>not to sell.</em></h2>
+    <p class="lede">Most capital arrives with a clock attached. Ours doesn't. We buy companies with no plan to sell them and judge ourselves on decades of compounding, not exit multiples.</p>
+    <div class="stats">
+      <div><strong>0</strong><span>Planned exits</span></div>
+      <div><strong>25+</strong><span>Year horizon</span></div>
+      <div><strong>5</strong><span>Operating companies</span></div>
+    </div>
+    <div class="work" data-work="1"></div>
+  </section>
+
+  <section class="chapter" id="divisions" data-k="2" data-side="left" aria-labelledby="h-divisions">
+    <p class="eyebrow"><b>02</b>Room II · Divisions</p>
+    <h2 id="h-divisions">Five companies, <em>one foundation.</em></h2>
+    <p class="lede">Each division keeps its name, its leadership and its customers. Ownership shown is the group's stake.</p>
+    <ul class="divs" id="divs"></ul>
+    <div class="work" data-work="2"></div>
+  </section>
+
+  <section class="chapter" id="technology" data-k="3" data-side="right" aria-labelledby="h-technology">
+    <p class="eyebrow"><b>03</b>Room III · Technology</p>
+    <h2 id="h-technology">Shared systems, <em>local judgment.</em></h2>
+    <p class="lede">Every company runs itself. The group supplies the things scale does better, so a 40-person firm gets the back office of a 4,000-person one.</p>
+    <ul class="ticks">
+      <li>One finance and reporting platform, closed monthly</li>
+      <li>Group cybersecurity and network operations, 24/7</li>
+      <li>Shared data, analytics and benchmarking</li>
+      <li>Pooled procurement, insurance and benefits</li>
+    </ul>
+    <div class="work" data-work="3"></div>
+  </section>
+
+  <section class="chapter" id="investments" data-k="4" data-side="left" aria-labelledby="h-investments">
+    <p class="eyebrow"><b>04</b>Room IV · Investments</p>
+    <h2 id="h-investments">What we <em>look for.</em></h2>
+    <p class="lede">We are a direct buyer with our own capital. If your company fits most of this, we'd like to hear from you.</p>
+    <dl class="spec">
+      <dt>Operating history</dt><dd>7+ years</dd>
+      <dt>EBITDA</dt><dd>$1M – $15M</dd>
+      <dt>Largest customer</dt><dd>Under 20% of revenue</dd>
+      <dt>Stake</dt><dd>Majority or full</dd>
+      <dt>Hold period</dt><dd>Indefinite</dd>
+    </dl>
+    <div class="work" data-work="4"></div>
+  </section>
+
+  <section class="chapter" id="principles" data-k="5" data-side="left" aria-labelledby="h-principles">
+    <p class="eyebrow"><b>05</b>Room V · Principles</p>
+    <h2 id="h-principles">How we <em>behave.</em></h2>
+    <ol class="princ">
+      <li><span><strong>Own for the long term.</strong>No sale date, no fund life, no forced exit.</span></li>
+      <li><span><strong>Leave management in charge.</strong>The people who built it keep running it.</span></li>
+      <li><span><strong>Fund growth from earnings.</strong>Modest leverage, reinvested cash.</span></li>
+      <li><span><strong>Say the hard thing early.</strong>Bad news travels up the same day.</span></li>
+    </ol>
+    <div class="work" data-work="5"></div>
+  </section>
+
+  <section class="chapter" id="contact" data-k="6" data-side="right" aria-labelledby="h-contact">
+    <p class="eyebrow"><b>06</b>Room VI · Contact</p>
+    <h2 id="h-contact">Selling a company, <em>or a work?</em></h2>
+    <p class="lede">Owners, advisors and collectors write to the same desk: <span class="mail">inquiries@norrisgyening.com</span></p>
+    <form class="contact" id="contactForm" novalidate>
+      <div class="two">
+        <label for="f-name">Name<input id="f-name" name="name" autocomplete="name" required></label>
+        <label for="f-email">Email<input id="f-email" name="email" type="email" autocomplete="email" required></label>
+      </div>
+      <label for="f-re">Regarding<select id="f-re" name="re"></select></label>
+      <label for="f-msg">Message<textarea id="f-msg" name="msg" placeholder="A few lines about the company or the work"></textarea></label>
+      <p class="err" id="f-err" role="alert"></p>
+      <div class="row" style="margin:0"><button class="btn red" type="submit">Prepare message</button></div>
+    </form>
+    <div class="ready" id="ready" aria-live="polite">
+      <strong>Your message is ready to send.</strong> Copy it and email it to <span class="mail">inquiries@norrisgyening.com</span>. Nothing has been sent yet.
+      <pre id="readyText"></pre>
+      <div class="row" style="margin:0">
+        <button class="btn" type="button" id="copyMsg">Copy message</button>
+        <a class="btn ghost" id="mailLink" href="mailto:inquiries@norrisgyening.com">Open email app</a>
+      </div>
+    </div>
+    <div class="work" data-work="6"></div>
+  </section>
+</main>
+
+<aside class="plan" aria-label="Floor plan">
+  <svg id="planSvg" width="232" height="44" viewBox="0 0 232 44"></svg>
+  <p><span>Floor plan</span><b id="planLabel">Foyer</b></p>
+</aside>
+<div class="hint" id="hint"><i></i>Scroll to walk</div>
+
+<div id="film" class="off" aria-hidden="true">
+  <div class="bar-t"></div><div class="bar-b"></div>
+  <div class="film-mark">SARAH NORRIS/GYENING</div>
+  <div class="cue" id="cue"></div>
+  <div class="film-ui"><span id="tc">00:00:00:00</span><span>A FILM IN ONE TAKE · 15 S</span></div>
+  <div class="film-prog" id="fprog"></div>
+  <button class="skip" id="skip" type="button">Skip intro <kbd>Esc</kbd></button>
+</div>
+<div id="fade"></div>
+<div id="loader" role="status">
+  <div class="load-in">
+    <div class="mark"><i></i>SARAH NORRIS/GYENING</div>
+    <div class="load-bar"><i id="lbar"></i></div>
+    <div class="load-step" id="lstep">Opening the gallery</div>
+  </div>
+</div>
+<script>/*__APP__*/</script>
+</body>
+</html>
